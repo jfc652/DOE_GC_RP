@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Générateur de DOE GC RP</title>
+  <link rel="icon" href="assets/logo-free.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+
+  <!-- ===================== FORMULAIRE ===================== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-head">
+      <h1>DOE GC RP</h1>
+      <div class="toolbar">
+        <button type="button" id="btnPrint" class="primary">Imprimer / PDF</button>
+        <button type="button" id="btnExport">Exporter (.json)</button>
+        <button type="button" id="btnImport">Importer</button>
+        <button type="button" id="btnNew" class="danger">Nouveau</button>
+        <input type="file" id="fileImport" accept=".json,application/json" hidden>
+      </div>
+      <p class="hint" id="saveStatus">Sauvegarde automatique dans ce navigateur.</p>
+    </div>
+
+    <details open>
+      <summary>Modèles en mémoire (<span id="modelCount"></span>)</summary>
+      <label>Rechercher un modèle
+        <input type="search" id="modelSearch" placeholder="Nom, chambres, site, mode de pose…">
+      </label>
+      <div id="modelList"></div>
+      <div class="model-save">
+        <label>Enregistrer le formulaire comme modèle
+          <input type="text" id="modelName" placeholder="Nom du nouveau modèle">
+        </label>
+        <button type="button" id="btnSaveModel" class="primary">Enregistrer</button>
+      </div>
+      <p class="hint">Un modèle garde tout sauf le code projet, l'adresse, la date, le plan et les photos.</p>
+      <div class="btn-line">
+        <button type="button" id="btnExportModels" class="small">Exporter les modèles</button>
+        <button type="button" id="btnImportModels" class="small">Importer des modèles</button>
+        <input type="file" id="fileModels" accept=".json,application/json" hidden>
+      </div>
+    </details>
+
+    <details open>
+      <summary>En-tête (logos et titre)</summary>
+      <label>Code affiché dans l'en-tête<input data-key="headerCode" type="text"></label>
+      <label>Ligne 2<input data-key="headerLine2" type="text"></label>
+      <label>Ligne 3<input data-key="headerLine3" type="text"></label>
+      <div class="row">
+        <label>Logo gauche<input type="file" id="logoLeftFile" accept="image/*"></label>
+        <label>Logo droite<input type="file" id="logoRightFile" accept="image/*"></label>
+      </div>
+      <button type="button" id="btnResetLogos" class="small">Rétablir les logos d'origine</button>
+    </details>
+
+    <details open>
+      <summary>Pied de page</summary>
+      <div class="row">
+        <label>Version du document<input data-key="version" data-list="version" type="text"></label>
+        <label>Code projet du site<input data-key="projectCode" type="text"></label>
+      </div>
+      <div class="row">
+        <label>Fait par<input data-key="author" type="text"></label>
+        <label>Date de réalisation<input data-key="date" type="date"></label>
+      </div>
+    </details>
+
+    <details>
+      <summary>Page 1 : Couverture</summary>
+      <label>Titre de l'encart<input data-key="coverTitle" type="text"></label>
+      <label>Plan / vue aérienne<input type="file" id="coverImageFile" accept="image/*"></label>
+      <button type="button" id="btnClearCover" class="small">Retirer l'image</button>
+      <label>Adresse du site<input data-key="address" type="text"></label>
+    </details>
+
+    <details>
+      <summary>Page 2 : Caractéristiques de la liaison</summary>
+      <label>Linéaire de GC (ml)<input data-key="gcLength" type="text"></label>
+      <fieldset>
+        <legend>Linéaire par mode de pose</legend>
+        <div id="poseList"></div>
+        <button type="button" id="btnAddPose" class="small">+ Ajouter une ligne</button>
+      </fieldset>
+      <label>Types et nb de chambres<input data-key="chambers" data-list="chambers" type="text" placeholder="Ex. 1 L2T et 1 L1T"></label>
+    </details>
+
+    <details>
+      <summary>Modalités d'accès</summary>
+      <label>Nom et information de contact<textarea data-key="accessContact" rows="2"></textarea></label>
+      <div class="row">
+        <label>Type d'accès<input data-key="accessType" data-list="accessType" type="text"></label>
+        <label>Type de clés<input data-key="keyType" data-list="keyType" type="text"></label>
+      </div>
+      <label>Code, Badgeuse<input data-key="accessCode" type="text"></label>
+      <div class="row">
+        <label>Sécurisation de chambre<input data-key="chamberSecurity" data-list="yesNoSo" type="text"></label>
+        <label>Nom de la chambre<input data-key="chamberName" type="text"></label>
+      </div>
+      <label>Type de sécurisation<input data-key="securityType" data-list="securityType" type="text"></label>
+    </details>
+
+    <details>
+      <summary>Informations remarquables</summary>
+      <label>Coord. technicien qui a fait la VT<textarea data-key="technician" rows="3"></textarea></label>
+      <label>Typologie du site<input data-key="siteType" data-list="siteType" type="text"></label>
+      <label>Monument historique, ONF, VNF<input data-key="heritage" data-list="yesNoSo" type="text"></label>
+    </details>
+
+    <details>
+      <summary>Impact GC</summary>
+      <label>Domaine public<input data-key="publicDomain" data-list="yesNoSo" type="text"></label>
+      <label>Impact gestionnaire (villes, département…)<input data-key="manager" type="text"></label>
+      <label>Numéro PMV (DOE)<input data-key="pmv" type="text"></label>
+      <label>Domaine privé<input data-key="privateDomain" data-list="yesNoSo" type="text"></label>
+      <label>Numéro(s) de parcelle(s) + propriétaires + coordonnées<input data-key="parcels" type="text"></label>
+      <label>Code convention (DOE)<input data-key="convention" type="text"></label>
+    </details>
+
+    <details>
+      <summary>Modalités de mise en œuvre / sécurité</summary>
+      <label>Signalisation routière<input data-key="signage" data-list="yesNoSo" type="text"></label>
+      <label>Intervention DRIRE<input data-key="drire" data-list="yesNoSo" type="text"></label>
+      <label>Circulation alternée<input data-key="traffic" data-list="traffic" type="text"></label>
+    </details>
+
+    <details>
+      <summary>Listes de choix (fichier CSV)</summary>
+      <p class="hint">Les menus déroulants lisent <code>assets/listes.csv</code> (colonnes <code>liste;valeur</code>). Importez votre propre CSV pour les remplacer ; il reste en mémoire dans ce navigateur.</p>
+      <div class="btn-line">
+        <button type="button" id="btnExportCsv" class="small">Télécharger le CSV actuel</button>
+        <button type="button" id="btnImportCsv" class="small">Importer un CSV</button>
+        <button type="button" id="btnResetCsv" class="small">Listes d'origine</button>
+        <input type="file" id="fileCsv" accept=".csv,text/csv,text/plain" hidden>
+      </div>
+    </details>
+
+    <details>
+      <summary>Pages Légende et Coupe type</summary>
+      <label>Image de la légende<input type="file" id="legendFile" accept="image/*"></label>
+      <button type="button" id="btnResetLegend" class="small">Rétablir la légende d'origine</button>
+      <label>Titre de la page coupe<input data-key="coupeTitle" type="text"></label>
+      <label>Image de la coupe type<input type="file" id="coupeFile" accept="image/*"></label>
+      <button type="button" id="btnResetCoupe" class="small">Rétablir la coupe d'origine</button>
+      <label class="check"><input type="checkbox" data-key="showLegend" data-bool> Afficher la page Légende</label>
+      <label class="check"><input type="checkbox" data-key="showCoupe" data-bool> Afficher la page Coupe type</label>
+    </details>
+
+    <details open>
+      <summary>Photos (<span id="photoCount">0</span>)</summary>
+      <label>Photos par page
+        <select data-key="photosPerPage" data-number>
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="4">4</option>
+          <option value="6">6</option>
+        </select>
+      </label>
+      <label>Ajouter des photos (sélection multiple)
+        <input type="file" id="photoFiles" accept="image/*" multiple>
+      </label>
+      <p class="hint">La numérotation « Photo N : » suit l'ordre de la liste.</p>
+      <div id="photoList"></div>
+    </details>
+  </aside>
+
+  <!-- ===================== APERÇU ===================== -->
+  <main class="preview-wrap">
+    <div class="zoom-bar">
+      <label>Zoom <input type="range" id="zoom" min="40" max="130" value="80"></label>
+      <span id="pageInfo"></span>
+    </div>
+    <div id="preview" class="preview"></div>
+  </main>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

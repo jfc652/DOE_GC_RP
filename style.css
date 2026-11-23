@@ -150,3 +150,31 @@ table.info ul { margin: 0; padding-left: 4mm; }
   .app { flex-direction: column; height: auto; }
   .sidebar { width: 100%; max-width: none; }
 }
+
+/* ---------- Éditeur de tracés ---------- */
+.modal { position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column; background: rgba(15,16,18,.94); color: #eee; }
+.modal[hidden] { display: none; }
+.modal-bar { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; padding: 10px 14px; background: #2b2e33; border-bottom: 1px solid #44484f; font-size: 13px; }
+.modal-bar .grp { display: flex; gap: 6px; align-items: center; }
+.modal-bar .grp.right { margin-left: auto; }
+.modal-bar label { margin: 0; color: #d0d3d8; display: flex; gap: 6px; align-items: center; }
+.modal-bar button, .modal-bar select { font: inherit; font-size: 13px; padding: 6px 10px; border: 1px solid #5a5f68; border-radius: 4px; background: #3a3e45; color: #f1f2f3; cursor: pointer; }
+.modal-bar button:hover { background: #484d55; }
+.modal-bar button:disabled { opacity: .4; cursor: default; }
+.modal-bar button.primary { background: #1a73e8; border-color: #1a73e8; color: #fff; }
+.modal-bar button.tool.active { background: #1a73e8; border-color: #1a73e8; color: #fff; }
+.modal-bar input[type=color] { width: 34px; height: 28px; padding: 0; border: 1px solid #5a5f68; border-radius: 4px; background: none; cursor: pointer; }
+.swatch { width: 24px; height: 24px; border-radius: 50%; border: 2px solid #fff3; cursor: pointer; padding: 0 !important; }
+.swatch.active { border-color: #fff; box-shadow: 0 0 0 2px #1a73e8; }
+.modal-hint { padding: 6px 14px; font-size: 12px; color: #aeb3ba; background: #25282c; }
+.modal-stage { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 10px; }
+#drawSvg { max-width: 100%; max-height: 100%; width: 100%; height: 100%; touch-action: none; user-select: none; background: #000; }
+#drawSvg.draw { cursor: crosshair; }
+#drawSvg.edit { cursor: default; }
+.photo-item .actions .draw-btn { margin-left: auto; }
+
+/* tracés dans les pages photos */
+.cell .frame svg { width: 100%; height: 100%; display: block; }
+.photo-item .badge { display: inline-block; font-size: 11px; background: #1a73e8; color: #fff; border-radius: 9px; padding: 0 6px; margin-left: 6px; }
+
+@media print { .modal { display: none !important; } }

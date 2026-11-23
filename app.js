@@ -282,6 +282,283 @@
     return { cols: 2, rows: 3 };
   }
 
+  /* ------------------------------------------------------------------ */
+  /*  Tracés (polylignes) sur les photos                                */
+  /* ------------------------------------------------------------------ */
+  var SVGNS = 'http://www.w3.org/2000/svg';
+  function sv(tag, attrs) {
+    var el = document.createElementNS(SVGNS, tag);
+    Object.keys(attrs || {}).forEach(function (k) { el.setAttribute(k, attrs[k]); });
+    return el;
+  }
+
+  /* Groupe SVG d'un tracé. W = largeur de l'image en pixels (l'épaisseur est proportionnelle). */
+  function shapeGroup(shape, W, opts) {
+    opts = opts || {};
+    var g = sv('g');
+    var pts = shape.pts.map(function (q) { return q[0].toFixed(1) + ',' + q[1].toFixed(1); }).join(' ');
+    var sw = shape.w * W;
+    var base = { points: pts, fill: 'none', 'stroke-linejoin': 'round' };
+    if (shape.halo) {
+      g.appendChild(sv('polyline', Object.assign({ stroke: '#fff', 'stroke-opacity': '0.65', 'stroke-width': sw * 1.9, 'stroke-linecap': 'round' }, base)));
+    }
+    var line = sv('polyline', Object.assign({ stroke: shape.color, 'stroke-width': sw, 'stroke-linecap': shape.dash ? 'butt' : 'round' }, base));
+    if (shape.dash) line.setAttribute('stroke-dasharray', (sw * 3.2) + ' ' + (sw * 2.2));
+    g.appendChild(line);
+    if (opts.hit) {
+      var hit = sv('polyline', Object.assign({ stroke: 'transparent', 'stroke-width': Math.max(sw * 2.4, W * 0.025), 'stroke-linecap': 'round' }, base));
+      hit.setAttribute('data-sid', shape.id);
+      hit.style.pointerEvents = 'stroke';
+      hit.style.cursor = 'pointer';
+      g.appendChild(hit);
+    }
+    return g;
+  }
+
+  /* Image d'une photo : <img> simple, ou <svg> (image + tracés) quand il y a des tracés. */
+  function photoNode(p, alt) {
+    if (p.shapes && p.shapes.length && p.w && p.h) {
+      var svg = sv('svg', { viewBox: '0 0 ' + p.w + ' ' + p.h, preserveAspectRatio: 'xMidYMid meet', role: 'img', 'aria-label': alt });
+      svg.appendChild(sv('image', { href: p.src, x: 0, y: 0, width: p.w, height: p.h }));
+      p.shapes.forEach(function (s) { if (s.pts.length >= 2) svg.appendChild(shapeGroup(s, p.w)); });
+      return svg;
+    }
+    return h('img', { src: p.src, alt: alt });
+  }
+
+  var COLORS = ['#e53935', '#fb8c00', '#fdd835', '#43a047', '#00bcd4', '#1e88e5', '#d81b60', '#ffffff', '#111111'];
+  var D = null; /* état de l'éditeur */
+
+  function el(id) { return document.getElementById(id); }
+
+  function openDraw(p) {
+    var img = new Image();
+    img.onload = function () {
+      p.w = img.naturalWidth; p.h = img.naturalHeight;
+      var idx = state.photos.indexOf(p);
+      D = {
+        photo: p, W: p.w, H: p.h,
+        shapes: JSON.parse(JSON.stringify(p.shapes || [])),
+        mode: 'draw', cur: [], mouse: null, sel: null, drag: null, dirty: false,
+        color: COLORS[0], w: 0.014, dash: false, halo: true
+      };
+      el('drawTitle').textContent = 'Tracés sur la photo ' + (idx + 1);
+      var svg = el('drawSvg');
+      svg.textContent = '';
+      svg.setAttribute('viewBox', '0 0 ' + D.W + ' ' + D.H);
+      svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+      svg.appendChild(sv('image', { href: p.src, x: 0, y: 0, width: D.W, height: D.H }));
+      D.gShapes = sv('g'); D.gCur = sv('g'); D.gHandles = sv('g');
+      D.gCur.style.pointerEvents = 'none';
+      svg.appendChild(D.gShapes); svg.appendChild(D.gCur); svg.appendChild(D.gHandles);
+      el('drawModal').hidden = false;
+      setMode('draw');
+      syncControls();
+      renderDraw();
+    };
+    img.onerror = function () { alert('Photo illisible.'); };
+    img.src = p.src;
+  }
+
+  function closeDraw() { el('drawModal').hidden = true; D = null; }
+
+  function setMode(m) {
+    if (!D) return;
+    if (m === 'edit') finishCur();
+    D.mode = m; D.sel = (m === 'edit') ? D.sel : null; D.cur = []; D.mouse = null;
+    el('dMdDraw').classList.toggle('active', m === 'draw');
+    el('dMdEdit').classList.toggle('active', m === 'edit');
+    el('drawSvg').setAttribute('class', m);
+    el('dHint').textContent = m === 'draw'
+      ? 'Cliquez pour poser les points du tracé. Double-clic, Entrée, clic droit ou « Terminer le tracé » pour le finir. Retour arrière : annule le dernier point. Échap : abandonne le tracé en cours.'
+      : 'Cliquez sur un tracé pour le sélectionner, glissez ses points pour le corriger, changez sa couleur ou son épaisseur ci-dessus. Suppr : supprime le tracé sélectionné.';
+    renderDraw();
+  }
+
+  function selectedShape() {
+    if (!D || !D.sel) return null;
+    return D.shapes.filter(function (s) { return s.id === D.sel; })[0] || null;
+  }
+
+  function syncControls() {
+    el('dColor').value = /^#[0-9a-f]{6}$/i.test(D.color) ? D.color : '#e53935';
+    el('dWidth').value = String(D.w);
+    el('dDash').checked = D.dash;
+    el('dHalo').checked = D.halo;
+    document.querySelectorAll('#dSwatches .swatch').forEach(function (b) {
+      b.classList.toggle('active', b.dataset.color.toLowerCase() === D.color.toLowerCase());
+    });
+  }
+
+  function applyStyle(key, value) {
+    if (!D) return;
+    D[key] = value;
+    var s = selectedShape();
+    if (D.mode === 'edit' && s) { s[key] = value; D.dirty = true; }
+    syncControls();
+    renderDraw();
+  }
+
+  function renderDraw() {
+    if (!D) return;
+    D.gShapes.textContent = '';
+    D.shapes.forEach(function (s) { D.gShapes.appendChild(shapeGroup(s, D.W, { hit: D.mode === 'edit' })); });
+    renderCur();
+    D.gHandles.textContent = '';
+    var s = selectedShape();
+    if (D.mode === 'edit' && s) {
+      var r = Math.max(D.W, D.H) * 0.009;
+      s.pts.forEach(function (q, i) {
+        var c = sv('circle', { cx: q[0], cy: q[1], r: r, fill: '#fff', stroke: s.color, 'stroke-width': r * 0.35 });
+        c.setAttribute('data-vi', String(i));
+        c.style.cursor = 'move';
+        D.gHandles.appendChild(c);
+      });
+    }
+    el('dDelete').disabled = !(D.mode === 'edit' && s);
+    el('dFinish').disabled = !(D.mode === 'draw' && D.cur.length >= 2);
+    el('dClear').disabled = !D.shapes.length && !D.cur.length;
+    el('dUndo').disabled = !D.shapes.length && !D.cur.length;
+  }
+
+  function renderCur() {
+    D.gCur.textContent = '';
+    if (!D.cur.length) return;
+    var pts = D.cur.slice();
+    if (D.mouse) pts.push(D.mouse);
+    if (pts.length >= 2) D.gCur.appendChild(shapeGroup({ id: '_', color: D.color, w: D.w, dash: D.dash, halo: D.halo, pts: pts }, D.W));
+    var r = Math.max(D.W, D.H) * 0.006;
+    D.cur.forEach(function (q) {
+      D.gCur.appendChild(sv('circle', { cx: q[0], cy: q[1], r: r, fill: '#fff', stroke: D.color, 'stroke-width': r * 0.4 }));
+    });
+  }
+
+  function finishCur() {
+    if (!D) return;
+    if (D.cur.length >= 2) {
+      var s = { id: uid(), color: D.color, w: D.w, dash: D.dash, halo: D.halo, pts: D.cur.map(function (q) { return [q[0], q[1]]; }) };
+      D.shapes.push(s);
+      D.dirty = true;
+    }
+    D.cur = []; D.mouse = null;
+    renderDraw();
+  }
+
+  function toPt(e) {
+    var svg = el('drawSvg');
+    var pt = svg.createSVGPoint();
+    pt.x = e.clientX; pt.y = e.clientY;
+    var q = pt.matrixTransform(svg.getScreenCTM().inverse());
+    return [Math.min(D.W, Math.max(0, q.x)), Math.min(D.H, Math.max(0, q.y))];
+  }
+
+  function onDrawDown(e) {
+    if (!D || e.button > 0) return;
+    var pt = toPt(e);
+    if (D.mode === 'draw') {
+      /* Double-clic / double-tap : termine le tracé (le point du 1er clic est déjà posé). */
+      var last = D.lastDown;
+      D.lastDown = { t: e.timeStamp, x: e.clientX, y: e.clientY };
+      if (last && D.cur.length >= 2 && e.timeStamp - last.t < 400 &&
+          Math.abs(e.clientX - last.x) + Math.abs(e.clientY - last.y) < 12) {
+        D.lastDown = null;
+        finishCur();
+        return;
+      }
+      D.cur.push(pt); D.mouse = null; renderDraw();
+      return;
+    }
+    var t = e.target;
+    if (t.getAttribute && t.getAttribute('data-vi') != null && selectedShape()) {
+      D.drag = { vi: Number(t.getAttribute('data-vi')) };
+      el('drawSvg').setPointerCapture(e.pointerId);
+      return;
+    }
+    var sid = t.getAttribute && t.getAttribute('data-sid');
+    D.sel = sid || null;
+    var s = selectedShape();
+    if (s) { D.color = s.color; D.w = s.w; D.dash = !!s.dash; D.halo = !!s.halo; syncControls(); }
+    renderDraw();
+  }
+  function onDrawMove(e) {
+    if (!D) return;
+    if (D.drag) {
+      var s = selectedShape();
+      if (s) { s.pts[D.drag.vi] = toPt(e); D.dirty = true; renderDraw(); }
+    } else if (D.mode === 'draw' && D.cur.length) {
+      D.mouse = toPt(e); renderCur();
+    }
+  }
+  function onDrawUp() { if (D) D.drag = null; }
+
+  function undoDraw() {
+    if (!D) return;
+    if (D.cur.length) D.cur.pop();
+    else if (D.shapes.length) { D.shapes.pop(); D.sel = null; D.dirty = true; }
+    D.mouse = null;
+    renderDraw();
+  }
+  function deleteSelected() {
+    if (!D || !D.sel) return;
+    D.shapes = D.shapes.filter(function (s) { return s.id !== D.sel; });
+    D.sel = null; D.dirty = true; renderDraw();
+  }
+  function askClose() {
+    if (D && D.dirty && !confirm('Fermer sans enregistrer les modifications des tracés ?')) return;
+    closeDraw();
+  }
+
+  function onDrawKey(e) {
+    if (!D || el('drawModal').hidden) return;
+    var tag = (e.target && e.target.tagName) || '';
+    if (tag === 'INPUT' && e.target.type !== 'checkbox' && e.target.type !== 'color') return;
+    if (e.key === 'Enter') { e.preventDefault(); if (D.mode === 'draw') finishCur(); }
+    else if (e.key === 'Escape') { e.preventDefault(); if (D.cur.length) { D.cur = []; D.mouse = null; renderDraw(); } else askClose(); }
+    else if (e.key === 'Backspace' || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z')) { e.preventDefault(); undoDraw(); }
+    else if (e.key === 'Delete') { e.preventDefault(); deleteSelected(); }
+  }
+
+  function bindDraw() {
+    var svg = el('drawSvg');
+    svg.addEventListener('pointerdown', onDrawDown);
+    svg.addEventListener('pointermove', onDrawMove);
+    svg.addEventListener('pointerup', onDrawUp);
+    svg.addEventListener('pointercancel', onDrawUp);
+    svg.addEventListener('contextmenu', function (e) { e.preventDefault(); if (D && D.mode === 'draw') finishCur(); });
+    document.addEventListener('keydown', onDrawKey);
+
+    var sw = el('dSwatches');
+    COLORS.forEach(function (c) {
+      var b = h('button', { type: 'button', class: 'swatch', title: c, style: 'background:' + c });
+      b.dataset.color = c;
+      b.addEventListener('click', function () { applyStyle('color', c); });
+      sw.appendChild(b);
+    });
+    el('dColor').addEventListener('input', function (e) { applyStyle('color', e.target.value); });
+    el('dWidth').addEventListener('change', function (e) { applyStyle('w', Number(e.target.value)); });
+    el('dDash').addEventListener('change', function (e) { applyStyle('dash', e.target.checked); });
+    el('dHalo').addEventListener('change', function (e) { applyStyle('halo', e.target.checked); });
+    el('dMdDraw').addEventListener('click', function () { setMode('draw'); });
+    el('dMdEdit').addEventListener('click', function () { setMode('edit'); });
+    el('dFinish').addEventListener('click', finishCur);
+    el('dUndo').addEventListener('click', undoDraw);
+    el('dDelete').addEventListener('click', deleteSelected);
+    el('dClear').addEventListener('click', function () {
+      if (!confirm('Effacer tous les tracés de cette photo ?')) return;
+      D.shapes = []; D.cur = []; D.sel = null; D.dirty = true; renderDraw();
+    });
+    el('dCancel').addEventListener('click', askClose);
+    el('dSave').addEventListener('click', function () {
+      if (!D) return;
+      finishCur();
+      D.photo.shapes = D.shapes;
+      D.photo.w = D.W; D.photo.h = D.H;
+      closeDraw();
+      renderPhotoList();
+      renderNow();
+    });
+  }
+
   function photoBody(chunk, startIndex, perPage) {
     var lay = layoutFor(perPage);
     var grid = h('div', {
@@ -292,7 +569,7 @@
       var n = startIndex + i + 1;
       grid.appendChild(h('div', { class: 'cell' },
         h('div', { class: 'frame' },
-          h('img', { src: p.src, alt: 'Photo ' + n }),
+          photoNode(p, 'Photo ' + n),
           p.tag ? h('div', { class: 'tag', text: p.tag }) : null),
         h('div', { class: 'cap' }, b('Photo ' + n + ' : '), p.caption || '')));
     });
@@ -668,14 +945,20 @@
       box.appendChild(h('div', { class: 'photo-item' },
         h('img', { src: p.src, alt: '' }),
         h('div', { class: 'body' },
-          h('div', { class: 'num', text: 'Photo ' + (i + 1) }),
+          h('div', { class: 'num' }, 'Photo ' + (i + 1),
+            (p.shapes && p.shapes.length) ? h('span', { class: 'badge', text: p.shapes.length + ' tracé' + (p.shapes.length > 1 ? 's' : '') }) : null),
           cap, tag,
           h('div', { class: 'actions' },
             btn('↑', 'Monter', function () { move(-1); }, i === 0),
             btn('↓', 'Descendre', function () { move(1); }, i === state.photos.length - 1),
             btn('Supprimer', 'Supprimer la photo', function () {
               state.photos.splice(i, 1); renderPhotoList(); renderNow();
-            })))));
+            }),
+            (function () {
+              var d = btn('✎ Tracer', 'Dessiner des polylignes sur cette photo', function () { openDraw(p); });
+              d.className = 'draw-btn';
+              return d;
+            })()))));
     });
   }
 
@@ -769,6 +1052,7 @@
     bindForm();
     bindActions();
     bindListsAndModels();
+    bindDraw();
     fillForm();
     renderModelList();
     fitZoom();

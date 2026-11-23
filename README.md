@@ -14,6 +14,15 @@ Application web 100 % statique (HTML / CSS / JavaScript, sans dépendance ni ser
 3. Ajouter des photos (sélection multiple possible), les légender, les réordonner (↑ ↓) ou les supprimer. Le nombre de photos par page se règle (1, 2, 4 ou 6).
 4. Cliquer sur **Imprimer / PDF** puis choisir « Enregistrer au format PDF » (format A4, marges : aucune, activer les graphiques d'arrière-plan).
 
+### Tracés sur les photos
+
+Sur chaque photo de la liste, le bouton **✎ Tracer** ouvre un éditeur plein écran pour dessiner des polylignes de couleur (par exemple le passage sous les tranchées recouvertes).
+
+- **Tracer** : un clic pose un point ; double-clic, Entrée, clic droit ou « Terminer le tracé » finit la polyligne. Retour arrière annule le dernier point, Échap abandonne le tracé en cours.
+- **Modifier** : cliquer sur un tracé le sélectionne ; on glisse ses points pour le corriger, on change sa couleur, son épaisseur ou ses pointillés, Suppr le supprime.
+- 9 couleurs prédéfinies + couleur libre, 4 épaisseurs, pointillés, contour blanc pour la lisibilité.
+- Les tracés sont stockés en vectoriel (ils restent modifiables), enregistrés avec la photo (sauvegarde automatique et export `.json`) et imprimés dans le PDF. L'image d'origine n'est jamais modifiée.
+
 ### Listes de choix (CSV)
 
 Les menus déroulants (mode de pose, fourreaux, chambres, type d'accès, type de clés, typologie du site, oui/non/s.o, etc.) sont alimentés par `assets/listes.csv`, au format `liste;valeur` (une ligne par choix). Chaque menu propose aussi « Autre (saisie libre)… » pour les cas hors liste.

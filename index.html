@@ -176,6 +176,41 @@
   </main>
 </div>
 
+<!-- ===================== ÉDITEUR DE TRACÉS ===================== -->
+<div id="drawModal" class="modal" hidden>
+  <div class="modal-bar">
+    <strong id="drawTitle">Tracés sur la photo</strong>
+    <div class="grp">
+      <button type="button" id="dMdDraw" class="tool active">✎ Tracer</button>
+      <button type="button" id="dMdEdit" class="tool">✥ Modifier</button>
+    </div>
+    <div class="grp" id="dSwatches" title="Couleur"></div>
+    <label class="grp">Perso <input type="color" id="dColor" value="#e53935"></label>
+    <label class="grp">Épaisseur
+      <select id="dWidth">
+        <option value="0.005">Fine</option>
+        <option value="0.009">Moyenne</option>
+        <option value="0.014" selected>Épaisse</option>
+        <option value="0.02">Très épaisse</option>
+      </select>
+    </label>
+    <label class="grp"><input type="checkbox" id="dDash"> Pointillés</label>
+    <label class="grp"><input type="checkbox" id="dHalo" checked> Contour blanc</label>
+    <div class="grp">
+      <button type="button" id="dFinish">Terminer le tracé</button>
+      <button type="button" id="dUndo">↶ Annuler</button>
+      <button type="button" id="dDelete">Supprimer le tracé</button>
+      <button type="button" id="dClear">Tout effacer</button>
+    </div>
+    <div class="grp right">
+      <button type="button" id="dCancel">Fermer sans enregistrer</button>
+      <button type="button" id="dSave" class="primary">Valider</button>
+    </div>
+  </div>
+  <div class="modal-hint" id="dHint"></div>
+  <div class="modal-stage"><svg id="drawSvg" xmlns="http://www.w3.org/2000/svg"></svg></div>
+</div>
+
 <script src="app.js"></script>
 </body>
 </html>
